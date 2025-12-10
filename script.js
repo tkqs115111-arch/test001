@@ -123,7 +123,7 @@ sheetsData.forEach((sheet, index) => {
     renderProducts(allProducts); 
     
     if(statusEl) statusEl.innerText = `載入完成，共整合 ${allProducts.length} 項元件資料。`;
-} 
+}); 
 
 // <--- 原本這裡少了一個大括號，導致程式崩潰
 // =========================================================
@@ -375,4 +375,5 @@ window.switchDriver = function(cardId, driverIndex) {
 // 啟動程式
 
 window.onload = initData;
+
 
