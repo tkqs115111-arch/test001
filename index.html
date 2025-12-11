@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>企業級硬體相容性查詢系統 (HCL)</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+
+    <div class="mobile-nav">
+        <i class="fas fa-bars nav-icon" onclick="toggleSidebar('left')"></i>
+        <span class="mobile-title">HCL 查詢系統</span>
+        <div class="nav-right-icons">
+            <i class="fas fa-layer-group nav-icon" onclick="toggleSidebar('right')"></i>
+        </div>
+    </div>
+
+    <div class="overlay" id="overlay" onclick="closeAllSidebars()"></div>
+
+    <aside class="sidebar-left" id="sidebarLeft">
+        <div class="sidebar-header">
+            硬體相容性搜尋
+            <i class="fas fa-times mobile-close-btn" onclick="toggleSidebar('left')"></i>
+        </div>
+        <ul class="tree-menu" id="sidebarMenu">
+            <li style="padding:20px; color:#999; text-align:center;">
+                <i class="fas fa-spinner fa-spin"></i> 資料載入中...
+            </li>
+        </ul>
+    </aside>
+
+    <main class="main-content">
+        <div class="search-panel">
+            <div class="search-input-wrapper">
+                <i class="fas fa-search search-icon"></i>
+                <input type="text" id="searchInput" class="search-input" placeholder="輸入關鍵字 (例如: 4090, RHEL, 25GbE)...">
+            </div>
+            <button class="btn btn-search" onclick="applyFilters()">搜尋</button>
+            <button class="btn btn-clear" onclick="clearFilters()">清除</button>
+        </div>
+
+        <div class="status-bar">
+            <span id="result-count" style="color:#666; font-size: 0.9em;">載入完成。</span>
+            <span class="current-group-indicator">
+                編輯中: <span id="active-group-name" class="highlight-text">群組 1</span>
+            </span>
+        </div>
+
+        <div class="card-list" id="productContainer">
+            <div class="loading-msg">系統初始化中...</div>
+        </div>
+    </main>
+
+    <aside class="sidebar-right" id="sidebarRight">
+        <div class="sidebar-header">
+            配置清單
+            <i class="fas fa-times mobile-close-btn" onclick="toggleSidebar('right')"></i>
+        </div>
+        
+        <div id="groups-wrapper" class="groups-wrapper">
+            </div>
+
+        <div class="btn-new-group" onclick="createNewGroup()">
+            <i class="fas fa-plus"></i> 新增群組
+        </div>
+    </aside>
+
+    <script src="script.js"></script>
+</body>
+</html>
