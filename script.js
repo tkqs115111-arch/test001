@@ -98,6 +98,7 @@ function renderProducts(data, viewType) {
         
         let btnClass = isAdded ? 'active' : '';
         let btnIcon = isAdded ? '<i class="fas fa-check"></i>' : '<i class="fas fa-plus"></i>';
+        // 預設動作：加入
         let btnAction = `addToGroup('${product.model}')`;
         
         if (viewType === 'group') {
@@ -105,7 +106,8 @@ function renderProducts(data, viewType) {
             btnIcon = '<i class="fas fa-minus"></i>';
             btnAction = `removeFromGroup('${product.model}')`;
         } else if (isAdded) {
-            btnAction = ''; 
+            // ★ 修改：如果已經加入，動作改為移除 ★
+            btnAction = `removeFromGroup('${product.model}')`;
         }
 
         const mockCmd = generateCommand(product);
@@ -320,8 +322,15 @@ function addToGroup(name) {
 function removeFromGroup(name) {
     const g = groups.find(x => x.id === activeGroupId);
     g.items = g.items.filter(x => x.model !== name);
+    
     renderGroupsSidebar();
-    renderProducts(g.items, 'group');
+    
+    // ★ 修改：如果在搜尋模式下移除，只更新按鈕，不跳轉視圖 ★
+    if (currentView === 'search') {
+        applyFilters(); 
+    } else {
+        renderProducts(g.items, 'group');
+    }
 }
 
 function loadGroupView(gid) {
@@ -330,7 +339,6 @@ function loadGroupView(gid) {
     renderProducts(groups.find(g => g.id === gid).items, 'group');
 }
 
-// 修改：手機版點選後自動關閉選單
 function filterByModel(m) { 
     document.getElementById('searchInput').value = m; 
     applyFilters(); 
