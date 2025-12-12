@@ -7,7 +7,6 @@ const OS_LIST = TARGET_SHEETS.filter(s => s !== 'FW');
 
 const STORAGE_KEY = 'HCL_CONFIG_DATA_V3';
 
-// 定義可用的顏色色票
 const COLOR_PALETTE = [
     '#8e44ad', // 紫色 (預設)
     '#2980b9', // 藍色
@@ -73,8 +72,11 @@ async function initData() {
 
     allProducts = Object.values(aggregatedMap);
     renderSidebarMenu();
+    showDashboard();
+}
 
-    // 歡迎儀表板
+function showDashboard() {
+    currentView = 'search';
     document.getElementById('result-count').innerText = `資料庫就緒 (共 ${allProducts.length} 筆)`;
     document.getElementById('productContainer').innerHTML = `
         <div class="welcome-dashboard">
@@ -85,6 +87,9 @@ async function initData() {
                 <div class="quick-card" onclick="filterByBrand('Intel')"><i class="fas fa-microchip"></i><span>Intel</span></div>
                 <div class="quick-card" onclick="filterByBrand('Mellanox')"><i class="fas fa-network-wired"></i><span>Mellanox</span></div>
                 <div class="quick-card" onclick="filterByBrand('Broadcom')"><i class="fas fa-hdd"></i><span>Broadcom</span></div>
+            </div>
+            <div class="instruction-step">
+                <small><i class="fas fa-info-circle"></i> 提示：在右側選擇您的目標 OS，系統將自動校驗驅動版本。</small>
             </div>
         </div>
     `;
@@ -209,7 +214,7 @@ function toggleDetails(btn) {
 }
 
 // =========================================================
-//  PART 4: 群組與功能函式
+//  PART 4: 群組管理
 // =========================================================
 
 function renderGroupsSidebar() {
@@ -233,10 +238,9 @@ function renderGroupsSidebar() {
                     </div>`;
         }).join('');
 
-const activeStyle = isActive 
-    ? `border-left-color: ${g.color}; box-shadow: 0 0 0 4px ${g.color}99; transform: scale(1.02); z-index: 10;` 
-    : `border-left-color: ${g.color};`;
-
+        const activeStyle = isActive 
+            ? `border-left-color: ${g.color}; box-shadow: 0 0 0 4px ${g.color}99; transform: scale(1.02); z-index: 10;` 
+            : `border-left-color: ${g.color};`;
 
         let itemsHtml = g.items.length === 0 
             ? '<div style="color:#ccc;font-style:italic;padding:5px;text-align:center;">無卡片</div>' 
@@ -246,14 +250,26 @@ const activeStyle = isActive
                 return `<div style="border-bottom:1px solid #eee;padding:2px;">${displayName}</div>`;
             }).join('');
         
+        // 生成群組區塊 (含鉛筆與顏色選擇器)
         wrapper.innerHTML += `
         <div class="group-box ${isActive ? 'active' : ''}" 
+             id="group-box-${g.id}"
              style="${activeStyle}" 
              onclick="setActiveGroup('${g.id}', event)">
              
             <div class="group-header">
                 <input class="group-name-input" value="${g.name}" onchange="updateGroupName('${g.id}',this.value)" onclick="event.stopPropagation()">
-                <i class="fas fa-trash-alt" style="color:#d93025;cursor:pointer;font-size:12px;" onclick="deleteGroup('${g.id}', event)" title="刪除"></i>
+                
+                <div style="display:flex; align-items:center;">
+                    <i class="fas fa-pen btn-edit-group" onclick="toggleGroupEditMode('${g.id}', this, event)" title="編輯顏色與設定"></i>
+                    
+                    <i class="fas fa-trash-alt" style="color:#d93025;cursor:pointer;font-size:12px;padding:5px;" onclick="deleteGroup('${g.id}', event)" title="刪除"></i>
+                </div>
+            </div>
+            
+            <div class="group-color-picker" onclick="event.stopPropagation()">
+                <span style="font-size:10px;color:#999;margin-right:5px;">標籤顏色:</span>
+                ${colorDotsHtml}
             </div>
             
             <div class="group-os-box">
@@ -261,10 +277,6 @@ const activeStyle = isActive
                 <select class="group-os-select" onchange="updateGroupOS('${g.id}', this.value)" onclick="event.stopPropagation()">
                     ${optionsHtml}
                 </select>
-            </div>
-
-            <div class="group-color-picker" onclick="event.stopPropagation()">
-                ${colorDotsHtml}
             </div>
 
             <div class="group-items-list">${itemsHtml}</div>
@@ -284,13 +296,29 @@ const activeStyle = isActive
     }
 }
 
+// 編輯模式切換函式
+function toggleGroupEditMode(gid, btn, event) {
+    event.stopPropagation();
+    const groupBox = document.getElementById(`group-box-${gid}`);
+    groupBox.classList.toggle('editing');
+    
+    const isEditing = groupBox.classList.contains('editing');
+    if (isEditing) {
+        btn.classList.replace('fa-pen', 'fa-check');
+        btn.style.color = 'var(--status-green)';
+    } else {
+        btn.classList.replace('fa-check', 'fa-pen');
+        btn.style.color = '';
+    }
+}
+
 function updateGroupColor(gid, newColor, event) {
     if(event) event.stopPropagation();
     const g = groups.find(x => x.id === gid);
     if(g) {
         g.color = newColor;
         saveToLocalStorage();
-        renderGroupsSidebar();
+        renderGroupsSidebar(); // 重新渲染後會自動關閉編輯模式
     }
 }
 
@@ -318,6 +346,32 @@ function loadFromLocalStorage() {
     }
 }
 
+// =========================================================
+//  PART 5: 左側選單 & 視覺狀態管理
+// =========================================================
+
+function setActiveMenuItem(el) {
+    // 1. 移除所有項目的 active 狀態
+    const allMenuItems = document.querySelectorAll('.menu-item');
+    allMenuItems.forEach(item => item.classList.remove('active'));
+
+    if (!el) return;
+
+    // 2. 為當前點擊的項目添加 active 狀態
+    el.classList.add('active');
+
+    // 3. 父子連動：如果點擊的是型號，把父層廠牌也設為 Active (紅框)
+    if (el.classList.contains('menu-model')) {
+        const submenuUl = el.closest('ul.submenu');
+        if (submenuUl) {
+            const vendorDiv = submenuUl.previousElementSibling;
+            if (vendorDiv && vendorDiv.classList.contains('menu-vendor')) {
+                vendorDiv.classList.add('active'); 
+            }
+        }
+    }
+}
+
 function renderSidebarMenu() {
     const menu = document.getElementById('sidebarMenu'); menu.innerHTML = '';
     const components = [...new Set(allProducts.map(p => p.type))].filter(Boolean).sort();
@@ -325,20 +379,39 @@ function renderSidebarMenu() {
         const vendors = [...new Set(allProducts.filter(p => p.type === comp).map(p => p.brand))].sort();
         let vendorHtml = vendors.map(v => {
             const models = allProducts.filter(p => p.type === comp && p.brand === v).map(p => p.model);
-            return `<li><div class="menu-item menu-vendor" onclick="toggleSubMenu(this)">${v} <i class="fas fa-caret-right arrow"></i></div><ul class="submenu">${models.map(m => `<li class="menu-item menu-model" onclick="filterByModel('${m}');event.stopPropagation()">${m}</li>`).join('')}</ul></li>`;
+            return `<li>
+                        <div class="menu-item menu-vendor" onclick="toggleSubMenu(this)">
+                            ${v} <i class="fas fa-caret-right arrow"></i>
+                        </div>
+                        <ul class="submenu">
+                            ${models.map(m => `
+                                <li class="menu-item menu-model" onclick="filterByModel('${m}', this);event.stopPropagation()">
+                                    ${m}
+                                </li>`).join('')}
+                        </ul>
+                    </li>`;
         }).join('');
+        
         menu.innerHTML += `<li><div class="menu-item menu-category" onclick="toggleSubMenu(this)">${comp} <i class="fas fa-caret-right arrow"></i></div><ul class="submenu">${vendorHtml}</ul></li>`;
     });
 }
 
-function toggleSubMenu(el) { el.nextElementSibling.classList.toggle('open'); el.parentElement.classList.toggle('open'); }
+function toggleSubMenu(el) { 
+    setActiveMenuItem(el); 
+    el.nextElementSibling.classList.toggle('open'); 
+    el.parentElement.classList.toggle('open'); 
+}
 
-// ★★★ 之前遺漏的關鍵函式 ★★★
-function filterByModel(m) { 
+function filterByModel(m, el) { 
+    if(el) setActiveMenuItem(el); 
     document.getElementById('searchInput').value = m; 
     applyFilters(); 
     if (window.innerWidth <= 768) closeAllSidebars();
 }
+
+// =========================================================
+//  PART 6: 輔助功能
+// =========================================================
 
 function createNewGroup() {
     const randomColor = COLOR_PALETTE[Math.floor(Math.random() * COLOR_PALETTE.length)];
@@ -352,7 +425,6 @@ function setActiveGroup(gid, evt) {
     activeGroupId = gid;
     renderGroupsSidebar();
     
-    // 判斷目前視圖並刷新
     if (currentView === 'group') {
         loadGroupView(gid);
     } else {
@@ -367,7 +439,9 @@ function deleteGroup(gid, evt) {
         groups = groups.filter(g => g.id !== gid);
         if(gid === activeGroupId) activeGroupId = groups[0].id;
         saveToLocalStorage(); renderGroupsSidebar();
-        if(currentView === 'group') { currentView = 'search'; initData(); }
+        if(currentView === 'group') { 
+            clearFilters(); 
+        }
     }
 }
 
@@ -414,7 +488,10 @@ function applyFilters() {
     renderProducts(allProducts.filter(p => p.model.toLowerCase().includes(kw) || p.brand.toLowerCase().includes(kw)), 'search'); 
 }
 
-function clearFilters() { document.getElementById('searchInput').value = ''; initData(); }
+function clearFilters() { 
+    document.getElementById('searchInput').value = ''; 
+    showDashboard(); 
+}
 
 function toggleSidebar(side) { 
     const s = document.getElementById(side==='left'?'sidebarLeft':'sidebarRight'); 
