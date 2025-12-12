@@ -36,7 +36,7 @@ body {
     padding: 20px; font-weight: 700; color: #333; background: #fff;
     border-bottom: 2px solid var(--search-red);
     text-align: center;
-    position: relative; /* 為了定位關閉按鈕 */
+    position: relative;
 }
 
 /* 移除列表預設樣式 */
@@ -76,7 +76,7 @@ body {
    ========================================= */
 .main-content {
     flex: 1; display: flex; flex-direction: column; padding: 20px;
-    background: var(--bg-body); min-width: 0; 
+    background: var(--bg-body); min-width: 0;
 }
 
 /* 搜尋面板 */
@@ -151,17 +151,15 @@ body {
 }
 .btn-circle:hover { border-color: var(--header-blue); color: var(--header-blue); }
 
-/* --- ★ 重點：懸停變紅色減號特效 ★ --- */
+/* --- 綠色按鈕懸停變紅特效 --- */
 .btn-circle.active { 
     background: var(--status-green); color: white; border-color: var(--status-green); 
 }
-/* 當滑鼠移上去時，變紅色 */
 .btn-circle.active:hover {
     background-color: var(--search-red);
     border-color: var(--search-red);
     transform: rotate(180deg);
 }
-/* 隱藏原本的勾勾，顯示減號 */
 .btn-circle.active:hover i { display: none; }
 .btn-circle.active:hover::after {
     content: "\f068"; /* FontAwesome Minus */
@@ -170,7 +168,7 @@ body {
     color: white;
 }
 
-/* 移除狀態 (直接在群組清單操作時) */
+/* 移除狀態 (群組檢視模式) */
 .btn-circle.remove { border-color: var(--search-red); color: var(--search-red); }
 .btn-circle.remove:hover { background: var(--search-red); color: white; }
 
@@ -219,7 +217,6 @@ body {
     display: flex; justify-content: flex-end; padding: 8px 10px; background: #fafafa; border-top: 1px dashed #eee; gap: 10px;
 }
 
-/* 圖示按鈕 */
 .btn-icon { color: #ccc; font-size: 14px; cursor: pointer; transition: 0.2s; padding: 2px; }
 .btn-view-icon:hover { color: var(--status-purple); transform: scale(1.1); }
 .btn-export-icon:hover { color: var(--status-blue); transform: scale(1.1); }
@@ -233,7 +230,7 @@ body {
 .loading-msg, .no-results { text-align: center; color: #999; margin-top: 50px; }
 
 /* =========================================
-   PART 5: 手機版響應式設計 (RWD) - 修正版
+   PART 5: 手機版響應式設計 (RWD)
    ========================================= */
 /* 強制在電腦版隱藏 */
 .mobile-nav, .mobile-close-btn, .overlay { display: none !important; }
@@ -273,7 +270,6 @@ body {
 
     .sidebar-left.active, .sidebar-right.active { transform: translateX(0); }
 
-    /* 手機版顯示關閉按鈕 */
     .mobile-close-btn { 
         display: block !important; 
         position: absolute; right: 15px; top: 18px;
