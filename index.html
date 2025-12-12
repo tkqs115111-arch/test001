@@ -37,8 +37,8 @@
             </div>
             
             <select id="global-os-select" class="os-selector-main" onchange="applyFilters()">
-    <option>Loading...</option>
-</select>
+                <option>Loading...</option>
+            </select>
         
             <button class="btn btn-search" onclick="applyFilters()">搜尋</button>
             <button class="btn btn-clear" onclick="clearFilters()">清除</button>
@@ -46,7 +46,10 @@
 
         <div class="status-bar">
             <span id="result-count" style="color:#666; font-size:14px;">準備就緒</span>
-            <span class="highlight-text">目前配置: <span id="active-group-name">群組 1</span></span>
+            
+            <span class="highlight-text" onclick="loadGroupView(activeGroupId)" title="點擊查看群組詳情">
+                目前配置: <span id="active-group-name">群組 1</span>
+            </span>
         </div>
 
         <div id="productContainer" class="card-list">
