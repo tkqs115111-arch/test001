@@ -2,49 +2,58 @@
 //  PART 1: 設定與 API
 // =========================================================
 const SPREADSHEET_ID = '1tJjquBs-Wyav4VEg7XF-BnTAGoWhE-5RFwwhU16GuwQ'; 
-const TARGET_SHEETS = ['Windows', 'RHEL', 'Oracle', 'ESXi', 'FW'];
-const STORAGE_KEY = 'HCL_CONFIG_DATA'; // 資料存檔 Key
+const TARGET_SHEETS = ['Windows', 'RHEL', 'Oracle', 'ESXi', 'FW']; 
+const OS_LIST = TARGET_SHEETS.filter(s => s !== 'FW');
+
+const STORAGE_KEY = 'HCL_CONFIG_DATA_V3';
+
+// 定義可用的顏色色票
+const COLOR_PALETTE = [
+    '#8e44ad', // 紫色 (預設)
+    '#2980b9', // 藍色
+    '#27ae60', // 綠色
+    '#f39c12', // 橘黃
+    '#c0392b', // 紅色
+    '#34495e'  // 深灰
+];
 
 let allProducts = [];
-let groups = [ { id: 'g1', name: '群組 1', items: [] } ];
+let groups = [ { id: 'g1', name: '群組 1', items: [], os: OS_LIST[0], color: COLOR_PALETTE[0] } ];
 let activeGroupId = 'g1';
 let currentView = 'search';
 
 // =========================================================
-//  PART 2: 初始化 (讀取存檔)
+//  PART 2: 初始化
 // =========================================================
 async function initData() {
-    loadFromLocalStorage(); // 啟動時讀檔
+    loadFromLocalStorage(); 
+    initGlobalOSSelector(); 
     renderGroupsSidebar(); 
     
+    document.getElementById('result-count').innerText = "資料同步中...";
+
     const sheetsPromises = TARGET_SHEETS.map(name => fetchSheetData(name));
     let sheetsData = [];
     try { sheetsData = await Promise.all(sheetsPromises); } 
-    catch (e) { document.getElementById('productContainer').innerHTML = '<div class="no-results">資料載入失敗。</div>'; return; }
+    catch (e) { document.getElementById('productContainer').innerHTML = '<div class="no-results">資料載入失敗，請檢查網路。</div>'; return; }
 
     let aggregatedMap = {};
     sheetsData.forEach((sheet, index) => {
         if (!Array.isArray(sheet)) return;
         const currentSheetName = TARGET_SHEETS[index];
         const isFwSheet = (currentSheetName === 'FW');
-        let lastComponent = '', lastVendor = '';    
 
         sheet.forEach(item => {
             const desc = item.description || item.Description || item['Model Name'];
-            let rawComp = item.component || item.Component; 
-            let rawVendor = item.vendor || item.Vendor;
-            if (rawComp) lastComponent = rawComp; else rawComp = lastComponent;
-            if (rawVendor) lastVendor = rawVendor; else rawVendor = lastVendor;
-
             if (!desc) return;
-            const modelKey = desc.trim();
 
+            const modelKey = desc.trim();
             if (!aggregatedMap[modelKey]) {
                 aggregatedMap[modelKey] = {
                     id: item.swid || item.SWID || 'N/A', 
                     model: desc, 
-                    brand: rawVendor || 'Generic',
-                    type: rawComp || 'Component',    
+                    brand: item.vendor || item.Vendor || 'Generic',
+                    type: item.component || item.Component || 'Component',    
                     fw: 'N/A',
                     drivers: [] 
                 };
@@ -55,7 +64,7 @@ async function initData() {
                 if (item.swid || item.SWID) aggregatedMap[modelKey].id = item.swid || item.SWID;
             } else {
                 aggregatedMap[modelKey].drivers.push({
-                    os: item.os || item.OS || currentSheetName, 
+                    os: currentSheetName, 
                     ver: item.driver || item.Driver || item.Version || 'N/A'
                 });
             }
@@ -63,9 +72,27 @@ async function initData() {
     });
 
     allProducts = Object.values(aggregatedMap);
-    document.getElementById('result-count').innerText = `載入完成，共 ${allProducts.length} 筆資料。`;
     renderSidebarMenu();
-    renderProducts(allProducts, 'search');
+
+    // 歡迎儀表板
+    document.getElementById('result-count').innerText = `資料庫就緒 (共 ${allProducts.length} 筆)`;
+    document.getElementById('productContainer').innerHTML = `
+        <div class="welcome-dashboard">
+            <div class="welcome-icon-circle"><i class="fas fa-server"></i></div>
+            <h2>Firmware & Driver HCL Tool</h2>
+            <p>請輸入型號搜尋，或點擊下方快速分類開始配置</p>
+            <div class="quick-links">
+                <div class="quick-card" onclick="filterByBrand('Intel')"><i class="fas fa-microchip"></i><span>Intel</span></div>
+                <div class="quick-card" onclick="filterByBrand('Mellanox')"><i class="fas fa-network-wired"></i><span>Mellanox</span></div>
+                <div class="quick-card" onclick="filterByBrand('Broadcom')"><i class="fas fa-hdd"></i><span>Broadcom</span></div>
+            </div>
+        </div>
+    `;
+}
+
+function filterByBrand(brandName) {
+    document.getElementById('searchInput').value = brandName;
+    applyFilters();
 }
 
 async function fetchSheetData(sheetName) {
@@ -75,24 +102,48 @@ async function fetchSheetData(sheetName) {
     } catch (error) { return []; }
 }
 
+function initGlobalOSSelector() {
+    const sel = document.getElementById('global-os-select');
+    if(sel) sel.innerHTML = OS_LIST.map(os => `<option value="${os}">${os}</option>`).join('');
+}
+
 // =========================================================
-//  PART 3: 渲染列表
+//  PART 3: 渲染列表 (產品列表)
 // =========================================================
 function renderProducts(data, viewType) {
     const container = document.getElementById('productContainer');
     container.innerHTML = '';
 
     if (data.length === 0) {
-        container.innerHTML = '<div class="no-results">找不到資料</div>';
+        container.innerHTML = '<div class="no-results">找不到符合條件的資料</div>';
         return;
     }
 
+    let targetOS = OS_LIST[0]; 
+    if (viewType === 'group') {
+        const currentGroup = groups.find(g => g.id === activeGroupId);
+        if (currentGroup) targetOS = currentGroup.os;
+    } else {
+        const globalSel = document.getElementById('global-os-select');
+        if (globalSel) targetOS = globalSel.value;
+    }
+
     data.forEach((product) => {
+        const driverObj = product.drivers.find(d => d.os === targetOS);
         let displayDriver = "N/A";
-        let displayOS = "OS";
-        if (product.drivers.length > 0) {
-            displayDriver = product.drivers[0].ver; 
-            displayOS = product.drivers[0].os;
+        let statusClass = "val-driver";
+
+        if (driverObj) {
+            displayDriver = driverObj.ver;
+            const lowerVer = displayDriver.toLowerCase();
+            if (lowerVer.includes('not support') || lowerVer === 'n/a') {
+                statusClass = "status-unsupported";
+                if(lowerVer === 'n/a') displayDriver = "Not Listed";
+            } else {
+                statusClass = "status-supported";
+            }
+        } else {
+            displayDriver = "Unknown"; statusClass = "status-unknown";
         }
 
         const currentGroup = groups.find(g => g.id === activeGroupId);
@@ -100,19 +151,13 @@ function renderProducts(data, viewType) {
         
         let btnClass = isAdded ? 'active' : '';
         let btnIcon = isAdded ? '<i class="fas fa-check"></i>' : '<i class="fas fa-plus"></i>';
-        // 預設動作：加入
         let btnAction = `addToGroup('${product.model}')`;
         
         if (viewType === 'group') {
-            btnClass = 'remove';
-            btnIcon = '<i class="fas fa-minus"></i>';
-            btnAction = `removeFromGroup('${product.model}')`;
+            btnClass = 'remove'; btnIcon = '<i class="fas fa-minus"></i>'; btnAction = `removeFromGroup('${product.model}')`;
         } else if (isAdded) {
-            // ★ 修改：若已加入，點擊即移除 ★
             btnAction = `removeFromGroup('${product.model}')`;
         }
-
-        const mockCmd = generateCommand(product);
 
         const html = `
         <div class="hw-row-card">
@@ -121,7 +166,6 @@ function renderProducts(data, viewType) {
                     <div class="row-model-title" title="${product.model}">${product.model}</div>
                     <div class="row-brand-badge">${product.brand}</div>
                 </div>
-
                 <div class="row-body">
                     <div class="data-group">
                         <div class="data-item">
@@ -129,31 +173,22 @@ function renderProducts(data, viewType) {
                             <span class="data-val val-fw">${product.fw}</span>
                         </div>
                         <div class="data-item">
-                            <span class="data-label">Driver (${displayOS})</span>
-                            <span class="data-val val-driver">${displayDriver}</span>
+                            <span class="data-label">Driver <span class="os-tag">${targetOS}</span></span>
+                            <span class="data-val ${statusClass}">${displayDriver}</span>
                         </div>
                     </div>
-
                     <div class="action-group">
-                        <div class="btn-expand-text" onclick="toggleDetails(this)">
-                            詳細 <i class="fas fa-chevron-down"></i>
-                        </div>
-                        <div class="btn-circle ${btnClass}" onclick="${btnAction}" title="加入/移除">
-                            ${btnIcon}
-                        </div>
+                        <div class="btn-expand-text" onclick="toggleDetails(this)">詳細 <i class="fas fa-chevron-down"></i></div>
+                        <div class="btn-circle ${btnClass}" onclick="${btnAction}">${btnIcon}</div>
                     </div>
                 </div>
             </div>
-
             <div class="row-details-panel">
                 <div style="margin-bottom:5px; font-weight:bold; color:#666;">升刷指令:</div>
-                <code class="cmd-code">${mockCmd}</code>
-                <div style="margin-top:10px; font-size:12px; color:#999;">
-                    SWID: <span style="font-family:monospace;">${product.id}</span>
-                </div>
+                <code class="cmd-code">${generateCommand(product)}</code>
+                <div style="margin-top:10px; font-size:12px; color:#999;">SWID: ${product.id}</div>
             </div>
         </div>`;
-        
         container.innerHTML += html;
     });
 }
@@ -167,76 +202,15 @@ function generateCommand(product) {
 }
 
 function toggleDetails(btn) {
-    const card = btn.closest('.hw-row-card');
-    const panel = card.querySelector('.row-details-panel');
+    const panel = btn.closest('.hw-row-card').querySelector('.row-details-panel');
     const icon = btn.querySelector('i');
-    
-    if (panel.style.display === 'block') {
-        panel.style.display = 'none';
-        icon.classList.replace('fa-chevron-up', 'fa-chevron-down');
-    } else {
-        panel.style.display = 'block';
-        icon.classList.replace('fa-chevron-down', 'fa-chevron-up');
-    }
+    if (panel.style.display === 'block') { panel.style.display = 'none'; icon.classList.replace('fa-chevron-up', 'fa-chevron-down'); }
+    else { panel.style.display = 'block'; icon.classList.replace('fa-chevron-down', 'fa-chevron-up'); }
 }
 
 // =========================================================
-//  PART 4: 功能與資料管理
+//  PART 4: 群組與功能函式
 // =========================================================
-
-function saveToLocalStorage() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(groups));
-}
-
-function loadFromLocalStorage() {
-    const savedData = localStorage.getItem(STORAGE_KEY);
-    if (savedData) {
-        try {
-            groups = JSON.parse(savedData);
-            if (groups.length > 0) activeGroupId = groups[0].id;
-            else { groups = [ { id: 'g1', name: '群組 1', items: [] } ]; activeGroupId = 'g1'; }
-        } catch (e) { console.error("存檔讀取失敗"); }
-    }
-}
-
-function renderSidebarMenu() {
-    const menu = document.getElementById('sidebarMenu');
-    menu.innerHTML = '';
-    const components = [...new Set(allProducts.map(p => p.type))].filter(Boolean).sort();
-    
-    components.forEach(comp => {
-        const vendors = [...new Set(allProducts.filter(p => p.type === comp).map(p => p.brand))].sort();
-        let vendorHtml = '';
-        vendors.forEach(vendor => {
-            const models = allProducts.filter(p => p.type === comp && p.brand === vendor).map(p => p.model);
-            const modelHtml = models.map(m => 
-                `<li class="menu-item menu-model" onclick="filterByModel('${m}'); event.stopPropagation();">
-                    ${m}
-                 </li>`
-            ).join('');
-
-            vendorHtml += `
-            <li>
-                <div class="menu-item menu-vendor" onclick="toggleSubMenu(this)">
-                    ${vendor} <i class="fas fa-caret-right arrow"></i>
-                </div>
-                <ul class="submenu">${modelHtml}</ul>
-            </li>`;
-        });
-        menu.innerHTML += `
-        <li>
-            <div class="menu-item menu-category" onclick="toggleSubMenu(this)">
-                ${comp} <i class="fas fa-caret-right arrow"></i>
-            </div>
-            <ul class="submenu">${vendorHtml}</ul>
-        </li>`;
-    });
-}
-
-function toggleSubMenu(el) {
-    el.nextElementSibling.classList.toggle('open');
-    el.parentElement.classList.toggle('open');
-}
 
 function renderGroupsSidebar() {
     const wrapper = document.getElementById('groups-wrapper');
@@ -244,22 +218,55 @@ function renderGroupsSidebar() {
 
     groups.forEach(g => {
         const isActive = (g.id === activeGroupId);
-        
+        if(!g.os) g.os = OS_LIST[0];
+        if(!g.color) g.color = COLOR_PALETTE[0];
+
+        const optionsHtml = OS_LIST.map(os => 
+            `<option value="${os}" ${g.os === os ? 'selected' : ''}>${os}</option>`
+        ).join('');
+
+        const colorDotsHtml = COLOR_PALETTE.map(color => {
+            const isSelected = (g.color === color) ? 'selected' : '';
+            return `<div class="color-dot ${isSelected}" 
+                        style="background-color: ${color};" 
+                        onclick="updateGroupColor('${g.id}', '${color}', event)">
+                    </div>`;
+        }).join('');
+
+const activeStyle = isActive 
+    ? `border-left-color: ${g.color}; box-shadow: 0 0 0 4px ${g.color}99; transform: scale(1.02); z-index: 10;` 
+    : `border-left-color: ${g.color};`;
+
+
         let itemsHtml = g.items.length === 0 
             ? '<div style="color:#ccc;font-style:italic;padding:5px;text-align:center;">無卡片</div>' 
             : g.items.map(i => {
-                const maxLen = 35;
+                const maxLen = 30;
                 const displayName = i.model.length > maxLen ? i.model.substring(0, maxLen) + '...' : i.model;
                 return `<div style="border-bottom:1px solid #eee;padding:2px;">${displayName}</div>`;
             }).join('');
         
         wrapper.innerHTML += `
-        <div class="group-box ${isActive ? 'active' : ''}" onclick="setActiveGroup('${g.id}', event)">
+        <div class="group-box ${isActive ? 'active' : ''}" 
+             style="${activeStyle}" 
+             onclick="setActiveGroup('${g.id}', event)">
+             
             <div class="group-header">
                 <input class="group-name-input" value="${g.name}" onchange="updateGroupName('${g.id}',this.value)" onclick="event.stopPropagation()">
                 <i class="fas fa-trash-alt" style="color:#d93025;cursor:pointer;font-size:12px;" onclick="deleteGroup('${g.id}', event)" title="刪除"></i>
             </div>
             
+            <div class="group-os-box">
+                <span class="group-os-label"><i class="fas fa-desktop"></i> 目標系統:</span>
+                <select class="group-os-select" onchange="updateGroupOS('${g.id}', this.value)" onclick="event.stopPropagation()">
+                    ${optionsHtml}
+                </select>
+            </div>
+
+            <div class="group-color-picker" onclick="event.stopPropagation()">
+                ${colorDotsHtml}
+            </div>
+
             <div class="group-items-list">${itemsHtml}</div>
             
             <div class="group-actions">
@@ -268,41 +275,89 @@ function renderGroupsSidebar() {
             </div>
         </div>`;
     });
+    
     const activeGroup = groups.find(g => g.id === activeGroupId);
-    if(activeGroup) document.getElementById('active-group-name').innerText = activeGroup.name;
+    if(activeGroup) {
+        const titleElem = document.getElementById('active-group-name');
+        titleElem.innerText = activeGroup.name;
+        titleElem.style.color = activeGroup.color; 
+    }
 }
 
-function exportGroupToCSV(gid, event) {
-    event.stopPropagation();
-    const group = groups.find(g => g.id === gid);
-    if (!group || group.items.length === 0) return alert("無資料可導出！");
+function updateGroupColor(gid, newColor, event) {
+    if(event) event.stopPropagation();
+    const g = groups.find(x => x.id === gid);
+    if(g) {
+        g.color = newColor;
+        saveToLocalStorage();
+        renderGroupsSidebar();
+    }
+}
 
-    let csvContent = "\uFEFF類別,廠牌,型號,FW版本,Driver版本(OS),SWID,升刷指令\n";
-    group.items.forEach(item => {
-        let drvInfo = item.drivers.length > 0 ? `${item.drivers[0].ver} (${item.drivers[0].os})` : "N/A";
-        const cmd = generateCommand(item).replace(/,/g, " ");
-        csvContent += `${item.type},${item.brand},${item.model},${item.fw},${drvInfo},${item.id},${cmd}\n`;
+function updateGroupOS(gid, newOS) {
+    const g = groups.find(x => x.id === gid);
+    if(g) {
+        g.os = newOS;
+        saveToLocalStorage();
+        if(currentView === 'group' && activeGroupId === gid) loadGroupView(gid);
+    }
+}
+
+function saveToLocalStorage() { localStorage.setItem(STORAGE_KEY, JSON.stringify(groups)); }
+
+function loadFromLocalStorage() {
+    const savedData = localStorage.getItem(STORAGE_KEY);
+    if (savedData) {
+        try { groups = JSON.parse(savedData); 
+              if (groups.length === 0) throw new Error();
+              activeGroupId = groups[0].id; 
+        } catch (e) { 
+            groups = [ { id: 'g1', name: '群組 1', items: [], os: OS_LIST[0], color: COLOR_PALETTE[0] } ]; 
+            activeGroupId = 'g1'; 
+        }
+    }
+}
+
+function renderSidebarMenu() {
+    const menu = document.getElementById('sidebarMenu'); menu.innerHTML = '';
+    const components = [...new Set(allProducts.map(p => p.type))].filter(Boolean).sort();
+    components.forEach(comp => {
+        const vendors = [...new Set(allProducts.filter(p => p.type === comp).map(p => p.brand))].sort();
+        let vendorHtml = vendors.map(v => {
+            const models = allProducts.filter(p => p.type === comp && p.brand === v).map(p => p.model);
+            return `<li><div class="menu-item menu-vendor" onclick="toggleSubMenu(this)">${v} <i class="fas fa-caret-right arrow"></i></div><ul class="submenu">${models.map(m => `<li class="menu-item menu-model" onclick="filterByModel('${m}');event.stopPropagation()">${m}</li>`).join('')}</ul></li>`;
+        }).join('');
+        menu.innerHTML += `<li><div class="menu-item menu-category" onclick="toggleSubMenu(this)">${comp} <i class="fas fa-caret-right arrow"></i></div><ul class="submenu">${vendorHtml}</ul></li>`;
     });
+}
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${group.name}_export.csv`;
-    link.click();
+function toggleSubMenu(el) { el.nextElementSibling.classList.toggle('open'); el.parentElement.classList.toggle('open'); }
+
+// ★★★ 之前遺漏的關鍵函式 ★★★
+function filterByModel(m) { 
+    document.getElementById('searchInput').value = m; 
+    applyFilters(); 
+    if (window.innerWidth <= 768) closeAllSidebars();
 }
 
 function createNewGroup() {
-    groups.push({ id: 'g' + Date.now(), name: '新配置', items: [] });
+    const randomColor = COLOR_PALETTE[Math.floor(Math.random() * COLOR_PALETTE.length)];
+    groups.push({ id: 'g' + Date.now(), name: '新配置', items: [], os: OS_LIST[0], color: randomColor });
     saveToLocalStorage();
     renderGroupsSidebar();
 }
 
 function setActiveGroup(gid, evt) {
-    if(evt && evt.target.tagName === 'INPUT') return;
+    if(evt && (evt.target.tagName === 'INPUT' || evt.target.tagName === 'SELECT')) return;
     activeGroupId = gid;
     renderGroupsSidebar();
-    if(currentView === 'search') applyFilters();
+    
+    // 判斷目前視圖並刷新
+    if (currentView === 'group') {
+        loadGroupView(gid);
+    } else {
+        applyFilters(); 
+    }
 }
 
 function deleteGroup(gid, evt) {
@@ -311,23 +366,19 @@ function deleteGroup(gid, evt) {
     if(confirm("確定刪除？")) {
         groups = groups.filter(g => g.id !== gid);
         if(gid === activeGroupId) activeGroupId = groups[0].id;
-        saveToLocalStorage();
-        renderGroupsSidebar();
-        if(currentView === 'search') applyFilters(); else loadGroupView(activeGroupId);
+        saveToLocalStorage(); renderGroupsSidebar();
+        if(currentView === 'group') { currentView = 'search'; initData(); }
     }
 }
 
-function updateGroupName(gid, val) { 
-    groups.find(x => x.id === gid).name = val; 
-    document.getElementById('active-group-name').innerText = val;
-    saveToLocalStorage();
-}
+function updateGroupName(gid, val) { groups.find(x => x.id === gid).name = val; document.getElementById('active-group-name').innerText = val; saveToLocalStorage(); }
 
 function addToGroup(name) {
     const g = groups.find(x => x.id === activeGroupId);
     const p = allProducts.find(x => x.model === name);
     if(p && !g.items.find(x => x.model === name)) { 
-        g.items.push(p); saveToLocalStorage(); renderGroupsSidebar(); applyFilters(); 
+        g.items.push(p); saveToLocalStorage(); renderGroupsSidebar(); 
+        if(currentView === 'search') applyFilters(); else loadGroupView(activeGroupId); 
     }
 }
 
@@ -338,48 +389,42 @@ function removeFromGroup(name) {
     if (currentView === 'search') applyFilters(); else renderProducts(g.items, 'group');
 }
 
-function loadGroupView(gid) {
-    currentView = 'group'; activeGroupId = gid;
-    renderGroupsSidebar();
-    renderProducts(groups.find(g => g.id === gid).items, 'group');
+function loadGroupView(gid) { 
+    currentView = 'group'; activeGroupId = gid; renderGroupsSidebar(); 
+    renderProducts(groups.find(g => g.id === gid).items, 'group'); 
 }
 
-function filterByModel(m) { 
-    document.getElementById('searchInput').value = m; applyFilters(); 
-    if (window.innerWidth <= 768) closeAllSidebars();
+function exportGroupToCSV(gid, evt) {
+    evt.stopPropagation();
+    const g = groups.find(x => x.id === gid);
+    if(!g.items.length) return alert("無資料");
+    let content = "Type,Brand,Model,FW,OS,Driver,SWID,Command\n";
+    g.items.forEach(i => {
+        const d = i.drivers.find(x => x.os === g.os);
+        content += `${i.type},${i.brand},${i.model},${i.fw},${g.os},${d?d.ver:'N/A'},${i.id},${generateCommand(i).replace(/,/g,' ')}\n`;
+    });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([content],{type:'text/csv;charset=utf-8;\uFEFF'}));
+    a.download = `${g.name}_${g.os}.csv`; a.click();
 }
 
-function applyFilters() {
-    currentView = 'search';
-    const kw = document.getElementById('searchInput').value.toLowerCase();
-    renderProducts(allProducts.filter(p => p.model.toLowerCase().includes(kw) || p.brand.toLowerCase().includes(kw)), 'search');
+function applyFilters() { 
+    currentView = 'search'; 
+    const kw = document.getElementById('searchInput').value.toLowerCase(); 
+    renderProducts(allProducts.filter(p => p.model.toLowerCase().includes(kw) || p.brand.toLowerCase().includes(kw)), 'search'); 
 }
 
-function clearFilters() { document.getElementById('searchInput').value = ''; applyFilters(); }
+function clearFilters() { document.getElementById('searchInput').value = ''; initData(); }
+
+function toggleSidebar(side) { 
+    const s = document.getElementById(side==='left'?'sidebarLeft':'sidebarRight'); 
+    const o = document.getElementById('overlay');
+    if(s.classList.contains('active')) { s.classList.remove('active'); o.classList.remove('active'); }
+    else { closeAllSidebars(); s.classList.add('active'); o.classList.add('active'); }
+}
+
+function closeAllSidebars() { document.getElementById('sidebarLeft').classList.remove('active'); document.getElementById('sidebarRight').classList.remove('active'); document.getElementById('overlay').classList.remove('active'); }
 
 document.getElementById("searchInput").addEventListener("keypress", e => { if(e.key==="Enter") applyFilters(); });
-
-// =========================================================
-//  PART 5: 手機版互動 (RWD)
-// =========================================================
-function toggleSidebar(side) {
-    const sidebar = document.getElementById(side === 'left' ? 'sidebarLeft' : 'sidebarRight');
-    const overlay = document.getElementById('overlay');
-    
-    if (sidebar.classList.contains('active')) {
-        sidebar.classList.remove('active');
-        overlay.classList.remove('active');
-    } else {
-        closeAllSidebars();
-        sidebar.classList.add('active');
-        overlay.classList.add('active');
-    }
-}
-
-function closeAllSidebars() {
-    document.getElementById('sidebarLeft').classList.remove('active');
-    document.getElementById('sidebarRight').classList.remove('active');
-    document.getElementById('overlay').classList.remove('active');
-}
 
 window.onload = initData;
