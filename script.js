@@ -3,6 +3,7 @@
 // =========================================================
 const SPREADSHEET_ID = '1tJjquBs-Wyav4VEg7XF-BnTAGoWhE-5RFwwhU16GuwQ'; 
 const TARGET_SHEETS = ['Windows', 'RHEL', 'Oracle', 'ESXi', 'FW'];
+const STORAGE_KEY = 'HCL_CONFIG_DATA'; // 資料存檔 Key
 
 let allProducts = [];
 let groups = [ { id: 'g1', name: '群組 1', items: [] } ];
@@ -10,10 +11,11 @@ let activeGroupId = 'g1';
 let currentView = 'search';
 
 // =========================================================
-//  PART 2: 初始化
+//  PART 2: 初始化 (讀取存檔)
 // =========================================================
 async function initData() {
-    renderGroupsSidebar();
+    loadFromLocalStorage(); // 啟動時讀檔
+    renderGroupsSidebar(); 
     
     const sheetsPromises = TARGET_SHEETS.map(name => fetchSheetData(name));
     let sheetsData = [];
@@ -106,7 +108,7 @@ function renderProducts(data, viewType) {
             btnIcon = '<i class="fas fa-minus"></i>';
             btnAction = `removeFromGroup('${product.model}')`;
         } else if (isAdded) {
-            // ★ 修改：如果已經加入，動作改為移除 ★
+            // ★ 修改：若已加入，點擊即移除 ★
             btnAction = `removeFromGroup('${product.model}')`;
         }
 
@@ -179,8 +181,23 @@ function toggleDetails(btn) {
 }
 
 // =========================================================
-//  PART 4: 功能邏輯
+//  PART 4: 功能與資料管理
 // =========================================================
+
+function saveToLocalStorage() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(groups));
+}
+
+function loadFromLocalStorage() {
+    const savedData = localStorage.getItem(STORAGE_KEY);
+    if (savedData) {
+        try {
+            groups = JSON.parse(savedData);
+            if (groups.length > 0) activeGroupId = groups[0].id;
+            else { groups = [ { id: 'g1', name: '群組 1', items: [] } ]; activeGroupId = 'g1'; }
+        } catch (e) { console.error("存檔讀取失敗"); }
+    }
+}
 
 function renderSidebarMenu() {
     const menu = document.getElementById('sidebarMenu');
@@ -190,7 +207,6 @@ function renderSidebarMenu() {
     components.forEach(comp => {
         const vendors = [...new Set(allProducts.filter(p => p.type === comp).map(p => p.brand))].sort();
         let vendorHtml = '';
-        
         vendors.forEach(vendor => {
             const models = allProducts.filter(p => p.type === comp && p.brand === vendor).map(p => p.model);
             const modelHtml = models.map(m => 
@@ -207,7 +223,6 @@ function renderSidebarMenu() {
                 <ul class="submenu">${modelHtml}</ul>
             </li>`;
         });
-
         menu.innerHTML += `
         <li>
             <div class="menu-item menu-category" onclick="toggleSubMenu(this)">
@@ -230,7 +245,6 @@ function renderGroupsSidebar() {
     groups.forEach(g => {
         const isActive = (g.id === activeGroupId);
         
-        // 增加顯示字數至 35
         let itemsHtml = g.items.length === 0 
             ? '<div style="color:#ccc;font-style:italic;padding:5px;text-align:center;">無卡片</div>' 
             : g.items.map(i => {
@@ -261,19 +275,11 @@ function renderGroupsSidebar() {
 function exportGroupToCSV(gid, event) {
     event.stopPropagation();
     const group = groups.find(g => g.id === gid);
-    
-    if (!group || group.items.length === 0) {
-        alert("此群組沒有資料可導出！");
-        return;
-    }
+    if (!group || group.items.length === 0) return alert("無資料可導出！");
 
     let csvContent = "\uFEFF類別,廠牌,型號,FW版本,Driver版本(OS),SWID,升刷指令\n";
-
     group.items.forEach(item => {
-        let drvInfo = "N/A";
-        if(item.drivers.length > 0) {
-            drvInfo = `${item.drivers[0].ver} (${item.drivers[0].os})`;
-        }
+        let drvInfo = item.drivers.length > 0 ? `${item.drivers[0].ver} (${item.drivers[0].os})` : "N/A";
         const cmd = generateCommand(item).replace(/,/g, " ");
         csvContent += `${item.type},${item.brand},${item.model},${item.fw},${drvInfo},${item.id},${cmd}\n`;
     });
@@ -281,15 +287,14 @@ function exportGroupToCSV(gid, event) {
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `${group.name}_export.csv`);
-    document.body.appendChild(link);
+    link.href = url;
+    link.download = `${group.name}_export.csv`;
     link.click();
-    document.body.removeChild(link);
 }
 
 function createNewGroup() {
     groups.push({ id: 'g' + Date.now(), name: '新配置', items: [] });
+    saveToLocalStorage();
     renderGroupsSidebar();
 }
 
@@ -303,34 +308,34 @@ function setActiveGroup(gid, evt) {
 function deleteGroup(gid, evt) {
     evt.stopPropagation();
     if(groups.length <= 1) return alert("至少保留一個");
-    if(confirm("刪除?")) {
+    if(confirm("確定刪除？")) {
         groups = groups.filter(g => g.id !== gid);
         if(gid === activeGroupId) activeGroupId = groups[0].id;
+        saveToLocalStorage();
         renderGroupsSidebar();
         if(currentView === 'search') applyFilters(); else loadGroupView(activeGroupId);
     }
 }
 
-function updateGroupName(gid, val) { groups.find(x => x.id === gid).name = val; document.getElementById('active-group-name').innerText = val; }
+function updateGroupName(gid, val) { 
+    groups.find(x => x.id === gid).name = val; 
+    document.getElementById('active-group-name').innerText = val;
+    saveToLocalStorage();
+}
 
 function addToGroup(name) {
     const g = groups.find(x => x.id === activeGroupId);
     const p = allProducts.find(x => x.model === name);
-    if(p && !g.items.find(x => x.model === name)) { g.items.push(p); renderGroupsSidebar(); applyFilters(); }
+    if(p && !g.items.find(x => x.model === name)) { 
+        g.items.push(p); saveToLocalStorage(); renderGroupsSidebar(); applyFilters(); 
+    }
 }
 
 function removeFromGroup(name) {
     const g = groups.find(x => x.id === activeGroupId);
     g.items = g.items.filter(x => x.model !== name);
-    
-    renderGroupsSidebar();
-    
-    // ★ 修改：如果在搜尋模式下移除，只更新按鈕，不跳轉視圖 ★
-    if (currentView === 'search') {
-        applyFilters(); 
-    } else {
-        renderProducts(g.items, 'group');
-    }
+    saveToLocalStorage(); renderGroupsSidebar();
+    if (currentView === 'search') applyFilters(); else renderProducts(g.items, 'group');
 }
 
 function loadGroupView(gid) {
@@ -340,8 +345,7 @@ function loadGroupView(gid) {
 }
 
 function filterByModel(m) { 
-    document.getElementById('searchInput').value = m; 
-    applyFilters(); 
+    document.getElementById('searchInput').value = m; applyFilters(); 
     if (window.innerWidth <= 768) closeAllSidebars();
 }
 
