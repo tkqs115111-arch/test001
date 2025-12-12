@@ -1,14 +1,14 @@
 :root {
     --bg-body: #f2f4f8;
     --bg-card: #ffffff;
-    --header-blue: #0e2a47;       /* 深藍色標題背景 */
-    --search-red: #d93025;        /* 搜尋按鈕紅 */
+    --header-blue: #0e2a47;       
+    --search-red: #d93025;        
     --text-dark: #333;
     --border-light: #e0e0e0;
     --status-green: #27ae60;
     --status-orange: #e67e22;
     --status-purple: #8e44ad;
-    --status-blue: #2980b9;       /* 導出按鈕藍 */
+    --status-blue: #2980b9;       
 }
 
 * { box-sizing: border-box; }
@@ -22,7 +22,7 @@ body {
 }
 
 /* =========================================
-   1. 左側邊欄 (居中、無小點)
+   1. 左側邊欄
    ========================================= */
 .sidebar-left {
     width: 260px;
@@ -39,18 +39,16 @@ body {
     position: relative;
 }
 
-/* 移除列表預設樣式 */
 .tree-menu { flex: 1; overflow-y: auto; list-style: none; padding: 0; margin: 0; }
 .tree-menu ul, .tree-menu li { list-style: none; padding: 0; margin: 0; }
 
-/* 選單項目：Flex 居中對齊 */
 .menu-item {
     padding: 12px 10px;
     cursor: pointer;
     border-bottom: 1px solid #f0f0f0;
     display: flex;
-    justify-content: center; /* 水平居中 */
-    align-items: center;     /* 垂直居中 */
+    justify-content: center;
+    align-items: center;
     gap: 8px;
     font-size: 14px;
     color: #555;
@@ -58,7 +56,6 @@ body {
 }
 .menu-item:hover { background: #f9f9f9; color: var(--search-red); }
 
-/* 層級背景區分 */
 .menu-category { font-weight: 700; background: #fff; }
 .menu-vendor { font-weight: 600; background: #fafafa; }
 .menu-model { font-size: 13px; color: #666; background: #fff; }
@@ -72,7 +69,7 @@ body {
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
 /* =========================================
-   2. 中間內容區 (橫條列表)
+   2. 中間內容區
    ========================================= */
 .main-content {
     flex: 1; display: flex; flex-direction: column; padding: 20px;
@@ -82,38 +79,63 @@ body {
 /* 搜尋面板 */
 .search-panel {
     background: #fff; padding: 15px; border-radius: 4px; border: 1px solid #ddd;
-    display: flex; gap: 10px; margin-bottom: 10px;
+    display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; 
 }
-.search-input-wrapper { flex: 1; display: flex; align-items: center; border: 1px solid #ddd; border-radius: 4px; padding: 0 10px; }
+.search-input-wrapper { flex: 1; display: flex; align-items: center; border: 1px solid #ddd; border-radius: 4px; padding: 0 10px; min-width: 200px; }
 .search-input { flex: 1; border: none; outline: none; padding: 10px; font-size: 16px; }
 .search-icon { color: #999; }
 
-.btn { padding: 8px 20px; border: none; border-radius: 4px; cursor: pointer; color: white; font-weight: bold; }
+.os-selector-main {
+    padding: 0 12px; border: 1px solid #ddd; border-radius: 4px;
+    background: #fff; color: #333; cursor: pointer; font-size: 14px;
+    max-width: 180px; min-width: 120px; height: 42px; 
+}
+.os-selector-main:focus { outline: none; border-color: var(--status-blue); }
+
+.btn { padding: 0 20px; height: 42px; border: none; border-radius: 4px; cursor: pointer; color: white; font-weight: bold; }
 .btn-search { background: var(--search-red); }
 .btn-clear { background: #7f8c8d; }
 
 .status-bar { display: flex; justify-content: space-between; margin-bottom: 15px; padding: 0 5px; }
-.highlight-text { color: var(--status-purple); font-weight: bold; background: #fff; padding: 2px 8px; border-radius: 4px; }
+.highlight-text { 
+    color: #333; /* 改成黑色 (或 #000) */
+    font-weight: bold; 
+    background: #fff; 
+    padding: 2px 8px; 
+    border-radius: 4px; 
+}
 
-/* 列表容器 */
+/* 列表容器 (防止背景線條) */
 .card-list {
     flex: 1; overflow-y: auto; padding-right: 5px;
     display: flex; flex-direction: column; gap: 12px;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
 }
 
-/* 橫條卡片 (Row Card) */
+/* ★★★ 卡片樣式 (強制高度與背景，修復塌陷) ★★★ */
 .hw-row-card {
-    background: #fff; border-radius: 6px; overflow: hidden;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-    border: 1px solid #e0e0e0;
-    display: flex; flex-direction: column;
+    min-height: 85px !important;  
+    background: #fff !important;  
+    display: flex !important;
+    flex-direction: column !important;
+    margin-bottom: 15px !important;
+    border: 1px solid #e0e0e0 !important;
+    border-radius: 6px !important;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05) !important;
+    overflow: visible !important;
     transition: transform 0.1s;
 }
-.hw-row-card:hover { transform: translateY(-1px); box-shadow: 0 4px 8px rgba(0,0,0,0.08); }
+.hw-row-card:hover { transform: translateY(-1px); box-shadow: 0 4px 8px rgba(0,0,0,0.08) !important; }
 
-.row-main-content { display: flex; flex-direction: row; min-height: 70px; }
+.row-main-content { 
+    display: flex !important; 
+    flex-direction: row !important; 
+    min-height: 70px !important; 
+    width: 100% !important;
+}
 
-/* 左側標題區 */
 .row-header {
     flex: 0 0 35%;
     background-color: var(--header-blue);
@@ -127,7 +149,6 @@ body {
     margin-top: 5px; text-transform: uppercase; letter-spacing: 0.5px;
 }
 
-/* 右側內容區 */
 .row-body {
     flex: 1; display: flex; align-items: center; justify-content: space-between;
     padding: 10px 20px; background: #fff;
@@ -138,12 +159,19 @@ body {
 .data-label { font-size: 10px; color: #999; text-transform: uppercase; font-weight: bold; }
 .data-val { font-family: monospace; font-size: 14px; font-weight: bold; color: #333; }
 .val-fw { color: var(--status-orange); }
-.val-driver { color: var(--status-green); }
 
-/* 操作按鈕 */
+.status-supported { color: var(--status-green) !important; font-weight: bold; }
+.status-unsupported { color: var(--search-red) !important; font-weight: bold; }
+.status-unknown { color: #999 !important; font-weight: normal;}
+
+.os-tag {
+    font-size: 10px; background: #f0f0f0; color: #666;
+    padding: 2px 6px; border-radius: 10px; margin-left: 4px;
+    vertical-align: middle; border: 1px solid #ddd;
+}
+
 .action-group { display: flex; align-items: center; gap: 15px; }
 
-/* 圓形按鈕 */
 .btn-circle {
     width: 32px; height: 32px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
@@ -151,7 +179,6 @@ body {
 }
 .btn-circle:hover { border-color: var(--header-blue); color: var(--header-blue); }
 
-/* --- 綠色按鈕懸停變紅特效 --- */
 .btn-circle.active { 
     background: var(--status-green); color: white; border-color: var(--status-green); 
 }
@@ -162,13 +189,12 @@ body {
 }
 .btn-circle.active:hover i { display: none; }
 .btn-circle.active:hover::after {
-    content: "\f068"; /* FontAwesome Minus */
+    content: "\f068";
     font-family: "Font Awesome 6 Free";
     font-weight: 900;
     color: white;
 }
 
-/* 移除狀態 (群組檢視模式) */
 .btn-circle.remove { border-color: var(--search-red); color: var(--search-red); }
 .btn-circle.remove:hover { background: var(--search-red); color: white; }
 
@@ -185,7 +211,7 @@ body {
 }
 
 /* =========================================
-   3. 右側群組 (眼睛圖示 & RWD)
+   3. 右側群組 (包含新優化)
    ========================================= */
 .sidebar-right {
     width: 260px; background: #fff; display: flex; flex-direction: column;
@@ -211,6 +237,32 @@ body {
 .group-name-input { border: none; border-bottom: 1px dashed #ccc; font-weight: bold; width: 65%; font-size: 13px; }
 .group-name-input:focus { outline: none; border-color: var(--status-purple); }
 
+/* ★★★ 新增：右側 OS 選單容器 (帶標籤) ★★★ */
+.group-os-box {
+    display: flex;
+    align-items: center; 
+    gap: 8px;            
+    padding: 8px 12px;
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #f0f0f0;
+}
+.group-os-label {
+    font-size: 12px;
+    font-weight: bold;
+    color: #555;
+    white-space: nowrap;
+}
+.group-os-select {
+    flex: 1;
+    padding: 4px;
+    font-size: 12px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: #fff;
+    color: #333;
+    cursor: pointer;
+}
+
 .group-items-list { padding: 5px 10px; font-size: 12px; color: #666; min-height: 20px; background: #fff; }
 
 .group-actions {
@@ -227,39 +279,83 @@ body {
 }
 .btn-new-group:hover { color: var(--status-purple); background: #f9f9f9; }
 
-.loading-msg, .no-results { text-align: center; color: #999; margin-top: 50px; }
+.loading-msg, .no-results { text-align: center; color: #999; margin-top: 50px; font-size: 14px; }
+
+
+/* ★★★ 新增：首頁儀表板樣式 (Dashboard) ★★★ */
+.welcome-dashboard {
+    text-align: center;
+    padding: 40px 20px;
+    color: #555;
+    animation: fadeIn 0.5s ease;
+}
+
+.welcome-icon-circle {
+    width: 80px; height: 80px;
+    background: #eef2f7;
+    color: #003366;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 36px;
+    margin: 0 auto 20px auto;
+}
+
+.welcome-dashboard h2 { margin-bottom: 10px; color: #333; }
+.welcome-dashboard p { color: #888; margin-bottom: 30px; }
+
+/* 快速連結卡片 */
+.quick-links {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
+}
+
+.quick-card {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 15px 25px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    min-width: 120px;
+}
+
+.quick-card:hover {
+    border-color: #003366;
+    background: #f0f7ff;
+    transform: translateY(-3px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+.quick-card i { font-size: 24px; color: #003366; }
+.quick-card span { font-weight: bold; font-size: 14px; }
+
+.instruction-step {
+    background: #fff8e1;
+    display: inline-block;
+    padding: 8px 15px;
+    border-radius: 20px;
+    border: 1px solid #ffe0b2;
+    color: #f57c00;
+}
 
 /* =========================================
-   PART 5: 手機版響應式設計 (RWD)
+   PART 5: RWD
    ========================================= */
-/* 強制在電腦版隱藏 */
 .mobile-nav, .mobile-close-btn, .overlay { display: none !important; }
 
 @media (max-width: 768px) {
-    body {
-        flex-direction: column;
-        height: auto;
-        overflow-y: auto;
-        padding-top: 60px;
-    }
-
-    /* 顯示頂部導航列 */
+    body { flex-direction: column; height: auto; overflow-y: auto; padding-top: 60px; }
     .mobile-nav {
-        display: flex !important;
-        justify-content: space-between;
-        align-items: center;
-        background: #fff;
-        padding: 0 20px;
-        height: 60px;
-        position: fixed; top: 0; left: 0; width: 100%;
-        z-index: 1000;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        border-bottom: 2px solid var(--header-blue);
+        display: flex !important; justify-content: space-between; align-items: center;
+        background: #fff; padding: 0 20px; height: 60px; position: fixed; top: 0; left: 0; width: 100%;
+        z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.1); border-bottom: 2px solid var(--header-blue);
     }
     .mobile-title { font-weight: bold; color: var(--header-blue); font-size: 18px; }
     .nav-icon { font-size: 20px; color: #555; cursor: pointer; padding: 10px; }
-    
-    /* 抽屜式側邊欄 */
     .sidebar-left, .sidebar-right {
         position: fixed; top: 0; height: 100%; width: 85%; max-width: 300px;
         z-index: 1100; box-shadow: 0 0 15px rgba(0,0,0,0.2);
@@ -267,45 +363,53 @@ body {
     }
     .sidebar-left { left: 0; transform: translateX(-100%); }
     .sidebar-right { right: 0; transform: translateX(100%); }
-
     .sidebar-left.active, .sidebar-right.active { transform: translateX(0); }
-
-    .mobile-close-btn { 
-        display: block !important; 
-        position: absolute; right: 15px; top: 18px;
-        cursor: pointer; color: #999; font-size: 18px; 
-    }
-
-    .overlay {
-        display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0,0,0,0.5); z-index: 1050; backdrop-filter: blur(2px);
-    }
+    .mobile-close-btn { display: block !important; position: absolute; right: 15px; top: 18px; cursor: pointer; color: #999; font-size: 18px; }
+    .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1050; backdrop-filter: blur(2px); }
     .overlay.active { display: block !important; }
-
-    /* 內容區 RWD */
     .main-content { width: 100%; padding: 15px; }
-
     .row-main-content { flex-direction: column; }
-    
-    .row-header {
-        width: 100%; flex: none; padding: 10px 15px;
-        flex-direction: row; justify-content: space-between; align-items: center;
-    }
+    .row-header { width: 100%; flex: none; padding: 10px 15px; flex-direction: row; justify-content: space-between; align-items: center; }
     .row-brand-badge { margin-top: 0; }
-
-    .row-body {
-        flex-direction: column; gap: 15px; align-items: flex-start; padding: 15px;
-    }
-
+    .row-body { flex-direction: column; gap: 15px; align-items: flex-start; padding: 15px; }
     .data-group { width: 100%; flex-direction: column; align-items: flex-start; gap: 10px; }
-    
-    .data-item {
-        flex-direction: row; justify-content: space-between; width: 100%;
-        border-bottom: 1px dashed #eee; padding-bottom: 5px;
-    }
-    
+    .data-item { flex-direction: row; justify-content: space-between; width: 100%; border-bottom: 1px dashed #eee; padding-bottom: 5px; }
     .action-group { width: 100%; justify-content: space-between; margin-top: 5px; }
-
-    .search-panel { flex-direction: column; }
+    .search-panel { gap: 10px; }
+    .search-input-wrapper { width: 100%; }
+    .os-selector-main { width: 100%; max-width: none; }
     .btn { width: 100%; }
+	/* === 新增：群組顏色選擇器樣式 === */
+.group-color-picker {
+    display: flex;
+    gap: 8px;
+    padding: 0 12px 8px 12px; /* 放在 OS 選單下方 */
+    background-color: #f8f9fa;
+    border-bottom: 1px dashed #eee;
+}
+
+.color-dot {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: transform 0.2s, border-color 0.2s;
+    position: relative;
+}
+
+.color-dot:hover {
+    transform: scale(1.2);
+}
+
+/* 當顏色被選中時的樣式 (外圈加框) */
+.color-dot.selected {
+    border-color: #333;
+    transform: scale(1.1);
+}
+
+/* 確保群組卡片邊框顏色是動態的，所以這裡只需保留基礎結構 */
+.group-box {
+    transition: all 0.2s;
+}
 }
